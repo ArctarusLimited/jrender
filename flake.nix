@@ -13,13 +13,22 @@
     in rec {
         packages = flattenTree {
             jrender = let
-                inherit (pkgs) lib buildGoModule;
+                inherit (pkgs) lib buildGoModule makeWrapper
+                    kubernetes-helm kustomize;
             in pkgs.buildGoModule {
                 pname = "jrender";
                 version = "1.0.0";
                 src = ./.;
 
+                buildInputs = [ makeWrapper ];
                 vendorSha256 = "sha256-nvp5hgVu/0VzdzeSgQsl1a4nvJ61JPisZTwM7OKLi0c=";
+
+                postFixup = let
+                    runtimeDeps = [ kubernetes-helm kustomize ];
+                in ''
+                    wrapProgram "$out/bin/jrender" \
+                        --prefix PATH ":" ${lib.makeBinPath runtimeDeps}
+                '';
             };
         };
 
