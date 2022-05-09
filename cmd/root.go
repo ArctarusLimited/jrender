@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"text/template"
 
 	jsonnet "github.com/google/go-jsonnet"
+	"github.com/google/go-jsonnet/ast"
 	"github.com/spf13/cobra"
 
 	tankaNative "github.com/grafana/tanka/pkg/jsonnet/native"
@@ -14,6 +17,28 @@ var options struct {
 	outputFile   string
 	jPathDirs    []string
 	extCodeFiles map[string]string
+}
+
+func applyTemplate() *jsonnet.NativeFunction {
+	return &jsonnet.NativeFunction{
+		Name:   "applyTemplate",
+		Params: ast.Identifiers{"str", "values"},
+		Func: func(data []interface{}) (res interface{}, err error) {
+			tpl := data[0].(string)
+			tmpl, err := template.New("tpl").Parse(tpl)
+			if err != nil {
+				return nil, err
+			}
+
+			var buf bytes.Buffer
+			err = tmpl.Execute(&buf, data[1])
+			if err != nil {
+				return nil, err
+			}
+
+			return buf.String(), nil
+		},
+	}
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -30,6 +55,7 @@ var rootCmd = &cobra.Command{
 			vm.NativeFunction(nf)
 		}
 
+		vm.NativeFunction(applyTemplate())
 		vm.Importer(&jsonnet.FileImporter{
 			JPaths: options.jPathDirs,
 		})
